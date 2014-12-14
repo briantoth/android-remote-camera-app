@@ -40,6 +40,7 @@ public class CameraPreview extends SurfaceView implements Callback {
         }
         // make preview changes here
         try {
+            mCamera.setDisplayOrientation(90); // portrait
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
         } catch (Exception e) {
@@ -51,6 +52,7 @@ public class CameraPreview extends SurfaceView implements Callback {
     public void surfaceCreated(SurfaceHolder holder) {
         // surface has been created, tell camera where to draw
         try {
+            mCamera.setDisplayOrientation(90); // portrait
             mCamera.setPreviewDisplay(holder);
             mCamera.startPreview();
         } catch (IOException e) {

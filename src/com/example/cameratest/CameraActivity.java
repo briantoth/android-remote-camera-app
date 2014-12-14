@@ -10,6 +10,7 @@ import java.util.Locale;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.hardware.Camera;
+import android.hardware.Camera.AutoFocusCallback;
 import android.hardware.Camera.PictureCallback;
 import android.os.Bundle;
 import android.os.Environment;
@@ -73,7 +74,7 @@ public class CameraActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
 
-        mCamera = Camera.open();
+        setupCamera();
 
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
@@ -84,8 +85,13 @@ public class CameraActivity extends Activity {
         captureButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // get an image from the camera
-                mCamera.takePicture(null, null, mPicture);
+                mCamera.autoFocus(new AutoFocusCallback() {
+                    @Override
+                    public void onAutoFocus(boolean success, Camera camera) {
+                        // get an image from the camera
+                        camera.takePicture(null, null, mPicture);
+                    }
+                });
             }
         });
     }
@@ -103,12 +109,23 @@ public class CameraActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (mCamera == null) {
-            mCamera = Camera.open();
+            setupCamera();
         }
         mPreview = new CameraPreview(this, mCamera);
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.removeAllViews();
         preview.addView(mPreview);
+    }
+
+    private void setupCamera() {
+        mCamera = Camera.open();
+        Camera.Parameters params = mCamera.getParameters();
+        if (!params.getSupportedFocusModes().contains(Camera.Parameters.FOCUS_MODE_AUTO)) {
+            throw new RuntimeException("Camera does not have auto-focus!");
+        } else {
+            params.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
+        }
+        mCamera.setParameters(params);
     }
 
 }
