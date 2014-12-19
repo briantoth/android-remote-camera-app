@@ -3,6 +3,9 @@ package com.example.cameratest;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -12,6 +15,7 @@ import android.app.Activity;
 import android.hardware.Camera;
 import android.hardware.Camera.AutoFocusCallback;
 import android.hardware.Camera.PictureCallback;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -24,6 +28,27 @@ import com.example.cameratest.R.id;
 @SuppressWarnings("deprecation")
 @SuppressLint("NewApi")
 public class CameraActivity extends Activity {
+
+    private static class SendPicture extends AsyncTask<byte[], Integer, Long> {
+
+        @Override
+        protected Long doInBackground(byte[]... image) {
+            try {
+                Socket socket = new Socket();
+                socket.bind(null);
+                socket.connect(new InetSocketAddress("192.168.0.104", 5555), 500);
+
+                OutputStream output = socket.getOutputStream();
+                // output.write("hello world".getBytes("UTF-8"));
+                output.write(image[0]);
+                output.close();
+                socket.close();
+            } catch (IOException e) {
+                Log.d(TAG, "Failed to send image data over network");
+            }
+            return null;
+        }
+    }
 
     /* package */static final String TAG = "Auto-picture-taker";
 
@@ -43,6 +68,7 @@ public class CameraActivity extends Activity {
 
     private Camera mCamera;
     private CameraPreview mPreview;
+
     private PictureCallback mPicture = new PictureCallback() {
 
         @Override
@@ -56,6 +82,7 @@ public class CameraActivity extends Activity {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
                 fos.write(data);
                 fos.close();
+                sendData(data);
             } catch (IOException e) {
                 Log.d(TAG, "Unable to write file.", e);
             } finally {
@@ -106,8 +133,27 @@ public class CameraActivity extends Activity {
     }
 
     @Override
+    protected void onRestart() {
+        super.onResume();
+        performReset();
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
+        performReset();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mCamera != null) {
+            mCamera.release();
+            mCamera = null;
+        }
+    }
+
+    private void performReset() {
         if (mCamera == null) {
             setupCamera();
         }
@@ -115,6 +161,10 @@ public class CameraActivity extends Activity {
         FrameLayout preview = (FrameLayout) findViewById(R.id.camera_preview);
         preview.removeAllViews();
         preview.addView(mPreview);
+    }
+
+    private void sendData(byte[] picture) {
+        new SendPicture().execute(picture);
     }
 
     private void setupCamera() {
